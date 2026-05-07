@@ -1,0 +1,24 @@
+# Auto-detect text files and normalize line endings on commit
+* text=auto eol=lf
+
+# Windows-only scripts must keep CRLF
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# Python / config / docs use LF
+*.py    text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+
+# Treat as binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.db    binary
+*.sqlite binary
+*.xlsx  binary
+*.zip   binary

@@ -1,0 +1,59 @@
+# Coupang 台灣站每日特價爬蟲設定
+# 複製此檔為 config.yaml 後修改
+
+site:
+  base_url: https://www.tw.coupang.com
+
+# 兩個目標分類。url 在第一次跑 discover 模式後填入。
+regions:
+  - id: KR
+    name: 火箭跨境韓國
+    url: ""    # 例：https://www.tw.coupang.com/categories/xxxxx
+  - id: US
+    name: 火箭跨境美國
+    url: ""
+
+filter:
+  # 折數，sale_price / original_price 的百分比上限。
+  # 90 = 至少 10% off (即 9 折以下)
+  max_price_ratio_pct: 90
+
+scraper:
+  max_pages_per_region: 30
+  delay_min_sec: 3.0
+  delay_max_sec: 8.0
+  retry_count: 3
+  retry_backoff_sec: 30
+  use_tor_on_fail: true
+  tor_socks_proxy: socks5://127.0.0.1:9050
+  headless: true
+  timeout_ms: 45000
+
+storage:
+  db_path: data/deals.db
+  retention_days: 30
+
+translation:
+  enabled: true
+  # google = deep-translator 免費 Google 端點 (有限額)
+  # none = 不翻譯
+  provider: google
+  target_lang: zh-TW
+  # 標題若主要為 CJK 漢字則跳過翻譯
+  skip_if_chinese: true
+
+telegram:
+  enabled: false
+  bot_token: ""
+  chat_id: ""
+  top_n: 50
+  # 訊息禁 emoji (符合使用者偏好)
+  no_emoji: true
+
+logging:
+  level: INFO
+  log_dir: logs
+
+streamlit:
+  default_top_n: 50
+  page_title: Coupang 台灣特價監控

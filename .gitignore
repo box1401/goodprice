@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# Project secrets / data
+config.yaml
+.env
+.env.*
+!.env.example
+
+# Generated data
+data/*.db
+data/*.db-journal
+data/*.sqlite*
+
+# Logs / dumps
+logs/*
+!logs/.gitkeep
+!data/.gitkeep
+*.log
+
+# Output
+*.xlsx
+*.csv
+
+# Streamlit
+.streamlit/secrets.toml
+
+# IDE / tools
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# OS
+$RECYCLE.BIN/
+
+# Recon scratch (kept locally, not pushed)
+scripts/recon/probe_*.html
+scripts/recon/*.png
