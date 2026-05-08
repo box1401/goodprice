@@ -154,15 +154,25 @@ def parse_listing(
         if discount_pct is None:
             continue
 
-        # 圖片 — src 為 // 開頭，補 https:
+        # 圖片 — Coupang 有兩種 lazy-load 模式：
+        #   (a) src = real URL          (data-src = base64 placeholder)
+        #   (b) src = blank1x1.gif      (data-img-src = real URL)
+        # 優先取 data-img-src；其次 src（排除 placeholder）；最後 data-src（排除 data:）。
         image_url: Optional[str] = None
         img = card.select_one(SELECTORS["image"])
         if img:
-            src = img.get("src") or img.get("data-src")
-            if src and not src.startswith("data:"):
-                if src.startswith("//"):
-                    src = "https:" + src
-                image_url = src
+            for attr in ("data-img-src", "src", "data-src"):
+                val = (img.get(attr) or "").strip()
+                if not val:
+                    continue
+                if val.startswith("data:"):
+                    continue
+                if "blank1x1" in val or val.endswith(("blank.gif", "transparent.gif")):
+                    continue
+                if val.startswith("//"):
+                    val = "https:" + val
+                image_url = val
+                break
 
         deals.append(Deal(
             product_id=str(pid),
