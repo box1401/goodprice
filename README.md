@@ -127,11 +127,19 @@ python -m src.main --discover
 
 ### Streamlit UI
 
+直接執行 `scripts\launch_streamlit.bat`（雙擊即可），會自動：
+1. 啟動 Streamlit server
+2. 3 秒後開啟瀏覽器到 `http://localhost:8501`
+3. 視窗關閉或 `Ctrl+C` 即停止 server
+
+或從命令列：
 ```powershell
 streamlit run web/app.py
 ```
 
-打開 `http://localhost:8501`，預設四個分頁：
+要做桌面捷徑，把 `scripts\launch_streamlit.bat` 複製到桌面並改名（例：`Goodprice 介面.bat`）。
+
+預設四個分頁：
 
 | 分頁 | 內容 |
 |---|---|
@@ -171,9 +179,10 @@ goodprice/
 ├── web/
 │   └── app.py             # Streamlit 介面
 ├── scripts/
-│   ├── setup.ps1          # 一鍵環境建置
-│   ├── run_daily.bat      # 排程器呼叫此檔
-│   └── register_task.ps1  # 註冊每日工作排程
+│   ├── setup.ps1              # 一鍵環境建置
+│   ├── run_daily.bat          # 排程器呼叫此檔
+│   ├── register_task.ps1      # 註冊每日工作排程
+│   └── launch_streamlit.bat   # 雙擊啟動查詢介面（自動開瀏覽器）
 ├── data/                  # deals.db（gitignored）
 ├── logs/                  # YYYY-MM-DD.log（gitignored）
 ├── config.yaml.template   # 設定範本
