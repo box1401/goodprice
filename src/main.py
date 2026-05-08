@@ -17,7 +17,7 @@ from pathlib import Path
 from .config import AppConfig
 from .db import DealDB
 from .notifier import TelegramNotifier, format_deals_message
-from .parser import filter_by_ratio, parse_listing
+from .parser import filter_by_ratio, parse_detail_prices, parse_listing
 from .scraper import CoupangScraper, ScraperConfig
 from .translator import Translator, attach_zh_titles
 
@@ -108,9 +108,47 @@ async def run(cfg: AppConfig, *, dry_run: bool = False, discover: bool = False, 
         log.info("discover 模式結束")
         return 0
 
-    log.info("總計 %d 件，套用折數 ≤ %.0f 過濾", len(all_deals), cfg.max_price_ratio_pct)
-    filtered = filter_by_ratio(all_deals, cfg.max_price_ratio_pct)
-    log.info("過濾後 %d 件", len(filtered))
+    log.info("總計 %d 件，套用折數 ≤ %.0f 過濾 (含首購價)", len(all_deals), cfg.max_price_ratio_pct)
+    candidates = filter_by_ratio(all_deals, cfg.max_price_ratio_pct)
+    log.info("過濾候選 %d 件", len(candidates))
+
+    # 取得詳情頁的「無首購折扣」一般售價
+    if candidates and cfg.use_detail_price:
+        log.info("逐筆訪問詳情頁取一般售價（去除首購折扣）...")
+        detail_html = await scraper.fetch_detail_html([d.url for d in candidates])
+        log.info("詳情頁抓到 %d/%d", len(detail_html), len(candidates))
+
+        replaced = skipped_no_sale = skipped_only_fp = 0
+        new_filtered = []
+        for d in candidates:
+            html = detail_html.get(d.url)
+            if not html:
+                # 抓不到詳情頁就保留原首購價（保守）
+                new_filtered.append(d)
+                continue
+            prices = parse_detail_prices(html)
+            sales = prices.get("sales")
+            original = prices.get("original")
+            if not sales:
+                # 詳情頁沒 sales-price-amount → 沒有「一般售價」，純首購折扣
+                skipped_only_fp += 1
+                continue
+            if not original or original <= sales:
+                # 沒原價或一般售價未折扣
+                skipped_no_sale += 1
+                continue
+            d.sale_price = sales
+            d.original_price = original
+            d.discount_pct = round((1 - sales / original) * 100, 1)
+            replaced += 1
+            new_filtered.append(d)
+        log.info("詳情價替換：%d 件；只有首購折扣排除 %d；無折扣排除 %d",
+                 replaced, skipped_only_fp, skipped_no_sale)
+        # 用一般售價再套一次門檻
+        filtered = filter_by_ratio(new_filtered, cfg.max_price_ratio_pct)
+        log.info("以一般售價過濾後 %d 件", len(filtered))
+    else:
+        filtered = candidates
 
     # 翻譯
     tcfg = cfg.translation_cfg

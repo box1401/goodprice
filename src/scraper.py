@@ -207,3 +207,64 @@ class CoupangScraper:
         d = random.uniform(self.cfg.delay_min, self.cfg.delay_max)
         log.debug("sleep %.1fs", d)
         await asyncio.sleep(d)
+
+    async def fetch_detail_html(self, urls: list[str]) -> dict[str, str]:
+        """逐一訪問商品詳情頁，回傳 {url: html}。失敗 url 不在 dict 中。
+
+        重用單一 browser context；相對短的 delay (1.5–3 秒) 加快進度。
+        """
+        out: dict[str, str] = {}
+        if not urls:
+            return out
+
+        async with async_playwright() as p:
+            browser: Browser = await p.chromium.launch(headless=self.cfg.headless)
+            try:
+                ua = random.choice(USER_AGENTS)
+                context: BrowserContext = await browser.new_context(
+                    user_agent=ua,
+                    locale="zh-TW",
+                    timezone_id="Asia/Taipei",
+                    viewport={"width": 1366, "height": 900},
+                    extra_http_headers={
+                        "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    },
+                )
+                page = await context.new_page()
+                if stealth_async is not None:
+                    try:
+                        await stealth_async(page)
+                    except Exception:
+                        pass
+
+                # 暖機
+                try:
+                    await page.goto("https://www.tw.coupang.com/", wait_until="domcontentloaded", timeout=self.cfg.timeout_ms)
+                    await asyncio.sleep(1.5)
+                except Exception as e:
+                    log.warning("warmup failed: %s", e)
+
+                total = len(urls)
+                for i, url in enumerate(urls, 1):
+                    try:
+                        resp = await page.goto(url, wait_until="domcontentloaded", timeout=self.cfg.timeout_ms)
+                        if resp and resp.status >= 400:
+                            log.warning("detail %d/%d HTTP %d %s", i, total, resp.status, url[:80])
+                            continue
+                        # 等價格區塊渲染
+                        try:
+                            await page.wait_for_selector(".price-amount", timeout=10000)
+                        except Exception:
+                            pass
+                        await asyncio.sleep(0.3)
+                        out[url] = await page.content()
+                        if i % 10 == 0 or i == total:
+                            log.info("detail %d/%d done", i, total)
+                    except Exception as e:
+                        log.warning("detail %d/%d fail %s: %s", i, total, url[:60], e)
+                    await asyncio.sleep(random.uniform(1.5, 3.0))
+            finally:
+                await browser.close()
+
+        return out

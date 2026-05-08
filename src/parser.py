@@ -189,3 +189,31 @@ def filter_by_ratio(deals: list[Deal], max_ratio_pct: float) -> list[Deal]:
         if ratio <= max_ratio_pct:
             out.append(d)
     return out
+
+
+# ============================================================
+# 詳情頁價格解析
+# 詳情頁有三組價：
+#   .price-amount.original-price-amount  → 原價 (劃線)
+#   .price-amount.sales-price-amount     → 一般售價 (無首購折扣) ← 我們要的
+#   .price-amount.final-price-amount     → 首購折扣後最終價
+# ============================================================
+
+_DETAIL_PRICE_PAT = re.compile(
+    r'<div[^>]*class="[^"]*\b(original|sales|final)-price-amount\b[^"]*"[^>]*>\s*\$?\s*([\d,]+)',
+    re.IGNORECASE,
+)
+
+
+def parse_detail_prices(html: str) -> dict[str, int]:
+    """從詳情頁 HTML 抽出 {original, sales, final} 三個價（缺哪個就沒哪個）。"""
+    out: dict[str, int] = {}
+    for m in _DETAIL_PRICE_PAT.finditer(html):
+        kind = m.group(1).lower()
+        try:
+            val = int(m.group(2).replace(",", ""))
+        except ValueError:
+            continue
+        # 同類型多筆只取第一個 (主要價格區塊)
+        out.setdefault(kind, val)
+    return out

@@ -4,27 +4,43 @@
 site:
   base_url: https://www.tw.coupang.com
 
-# 兩個目標分類。url 在第一次跑 discover 模式後填入。
+# tw.coupang.com 的 /categories/ 路徑被 Akamai 擋，改用 /np/search。
+# 經實測「q=韓國 火箭跨境」95% 命中跨境韓國；「q=美國 跨境」77% 命中跨境美國。
+# parser 再以「火箭跨境」badge 過濾，排除少量火箭速配混入。
+# 每個 region 可配多個 URL，結果會去重合併。
 regions:
   - id: KR
     name: 火箭跨境韓國
-    url: ""    # 例：https://www.tw.coupang.com/categories/xxxxx
+    urls:
+      - "https://www.tw.coupang.com/np/search?q=%E9%9F%93%E5%9C%8B%20%E7%81%AB%E7%AE%AD%E8%B7%A8%E5%A2%83&channel=user&listSize=72"
+      - "https://www.tw.coupang.com/np/search?q=%E9%9F%93%E5%9C%8B&channel=user&rocketAll=true&listSize=72"
   - id: US
     name: 火箭跨境美國
-    url: ""
+    urls:
+      - "https://www.tw.coupang.com/np/search?q=%E7%BE%8E%E5%9C%8B%20%E8%B7%A8%E5%A2%83&channel=user&listSize=72"
+      - "https://www.tw.coupang.com/np/search?q=%E7%BE%8E%E5%9C%8B%20%E7%81%AB%E7%AE%AD%E8%B7%A8%E5%A2%83&channel=user&listSize=72"
 
 filter:
   # 折數，sale_price / original_price 的百分比上限。
   # 90 = 至少 10% off (即 9 折以下)
   max_price_ratio_pct: 90
 
+# parser 是否限制只收「火箭跨境」徽章商品 (排除火箭速配)
+filter_rocket_global_only: true
+
+# 是否多訪問商品詳情頁，把「首購折扣價」換成「一般售價」。
+# 開啟後每次跑會多 5–10 分鐘 (~100 個詳情頁)，但價格不含首購抵用券。
+# 只看一般售價（非首購）才有的折扣會被保留；只靠首購才便宜的商品會被排除。
+use_detail_price: true
+
 scraper:
-  max_pages_per_region: 30
+  max_pages_per_region: 8
   delay_min_sec: 3.0
   delay_max_sec: 8.0
   retry_count: 3
   retry_backoff_sec: 30
-  use_tor_on_fail: true
+  # Tor 預設關閉 (本機需另裝)。失敗時直接 raise，不切 Tor。
+  use_tor_on_fail: false
   tor_socks_proxy: socks5://127.0.0.1:9050
   headless: true
   timeout_ms: 45000

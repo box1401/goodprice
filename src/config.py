@@ -55,6 +55,11 @@ class AppConfig:
         return bool(self.raw.get("filter_rocket_global_only", True))
 
     @property
+    def use_detail_price(self) -> bool:
+        """訪問商品詳情頁取「無首購折扣」一般售價。預設 True。"""
+        return bool(self.raw.get("use_detail_price", True))
+
+    @property
     def scraper_cfg(self) -> dict:
         return self.raw.get("scraper", {})
 
