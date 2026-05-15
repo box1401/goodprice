@@ -118,35 +118,34 @@ async def run(cfg: AppConfig, *, dry_run: bool = False, discover: bool = False, 
         detail_html = await scraper.fetch_detail_html([d.url for d in candidates])
         log.info("詳情頁抓到 %d/%d", len(detail_html), len(candidates))
 
-        replaced = skipped_no_sale = skipped_only_fp = 0
+        replaced = kept_no_detail = kept_listing = 0
         new_filtered = []
         for d in candidates:
             html = detail_html.get(d.url)
             if not html:
-                # 抓不到詳情頁就保留原首購價（保守）
+                # 抓不到詳情頁 → 信 listing 價
+                kept_no_detail += 1
                 new_filtered.append(d)
                 continue
             prices = parse_detail_prices(html)
             sales = prices.get("sales")
             original = prices.get("original")
-            if not sales:
-                # 詳情頁沒 sales-price-amount → 沒有「一般售價」，純首購折扣
-                skipped_only_fp += 1
-                continue
-            if not original or original <= sales:
-                # 沒原價或一般售價未折扣
-                skipped_no_sale += 1
-                continue
-            d.sale_price = sales
-            d.original_price = original
-            d.discount_pct = round((1 - sales / original) * 100, 1)
-            replaced += 1
+            # 只在能正向偵測「一般售價 < 原價」時用 sales 覆寫 listing
+            # (代表 listing 顯示的是含首購折扣的 final 價，要改成 regular 售價)
+            if sales and original and sales < original:
+                d.sale_price = sales
+                d.original_price = original
+                d.discount_pct = round((1 - sales / original) * 100, 1)
+                replaced += 1
+            else:
+                # 不確定 → 信 listing
+                kept_listing += 1
             new_filtered.append(d)
-        log.info("詳情價替換：%d 件；只有首購折扣排除 %d；無折扣排除 %d",
-                 replaced, skipped_only_fp, skipped_no_sale)
-        # 用一般售價再套一次門檻
+        log.info("詳情價替換 %d 件；信 listing %d 件；詳情頁抓失敗 %d 件",
+                 replaced, kept_listing, kept_no_detail)
+        # 再套折數門檻（用替換後的價格）
         filtered = filter_by_ratio(new_filtered, cfg.max_price_ratio_pct)
-        log.info("以一般售價過濾後 %d 件", len(filtered))
+        log.info("折數門檻過濾後 %d 件", len(filtered))
     else:
         filtered = candidates
 
@@ -170,6 +169,8 @@ async def run(cfg: AppConfig, *, dry_run: bool = False, discover: bool = False, 
         log.info("寫入 DB %d 筆", n)
         purged = db.purge_older_than(cfg.retention_days)
         log.info("清除 %d 筆過期資料 (>%d 天)", purged, cfg.retention_days)
+        deduped = db.dedupe_keep_latest()
+        log.info("跨日去重：刪除 %d 筆舊版本 (同 product_id 保留最新)", deduped)
     else:
         log.info("[dry-run] 不寫 DB")
 

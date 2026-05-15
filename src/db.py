@@ -121,6 +121,19 @@ class DealDB:
             cur = c.execute("DELETE FROM deals WHERE scrape_date < ?", (cutoff,))
             return cur.rowcount
 
+    def dedupe_keep_latest(self) -> int:
+        """同 product_id 只保留最新一筆 (以 id 為準，AUTOINCREMENT 單調遞增)。回傳刪除筆數。"""
+        with self._conn() as c:
+            cur = c.execute(
+                """
+                DELETE FROM deals
+                WHERE id NOT IN (
+                    SELECT MAX(id) FROM deals GROUP BY product_id
+                )
+                """
+            )
+            return cur.rowcount
+
     # ---------- read ----------
 
     def list_today(self, scrape_date: Optional[date] = None, top_n: Optional[int] = None) -> list[sqlite3.Row]:
